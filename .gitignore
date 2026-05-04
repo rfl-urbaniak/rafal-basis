@@ -7,3 +7,4 @@ submission/_report_rendered.md
 submission/figures/
 __pycache__/
 *.pyc
+data/*.csv

@@ -29,8 +29,8 @@ No R, no `pip`. uv is the only supported install path.
 ```bash
 git clone https://github.com/<owner>/<this-fork>.git
 cd <this-fork>
-git lfs pull
 uv sync          # installs from the committed uv.lock
+make run         # pulls data via LFS, unzips CSV, runs pipeline
 ```
 
 `uv sync` reads `pyproject.toml` + `uv.lock` and produces a reproducible
@@ -41,10 +41,19 @@ environment matching the one used to generate the submitted forecasts.
 ## Run the pipeline
 
 ```bash
+make run
+```
+
+This pulls the latest data via Git LFS, unpacks the CSV, and runs the pipeline.
+Equivalent to:
+
+```bash
+git lfs pull
+cd data && unzip -o turingAI_forecasting_challenge_dataset.csv.zip
 uv run python submission/generate_forecasts.py
 ```
 
-**Runtime:** max ~15–25 minutes on CPU (no GPU required). The two GPs are trained
+**Runtime:** ~15–25 minutes on CPU (no GPU required). The two GPs are trained
 once on the full 2023-03-16 → 2025-09-30 development set; the 173 assessment
 windows are then inference-only (seconds each).
 
