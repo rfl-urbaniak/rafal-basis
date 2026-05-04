@@ -8,3 +8,4 @@ submission/figures/
 __pycache__/
 *.pyc
 data/*.csv
+*.egg-info/
