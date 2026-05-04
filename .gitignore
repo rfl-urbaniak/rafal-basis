@@ -1,0 +1,9 @@
+.DS_Store
+.Rhistory
+submission/.cache/
+submission/logs/
+submission/__pycache__/
+submission/_report_rendered.md
+submission/figures/
+__pycache__/
+*.pyc

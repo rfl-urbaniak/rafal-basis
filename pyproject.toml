@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nhsead"
+version = "0.1"
+description = "Forecasting severe system pressure in the NHS."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "Apache 2.0" }
+authors = [{ name = "rfl-urbaniak" }]
+keywords = [
+  "machine learning",
+  "statistics",
+  "forecasting",
+  "NHS",
+]
+dependencies = [
+    "pandas",
+    "numpy",
+    "scipy",
+    "scikit-learn",
+    "loguru",
+    "mlflow",
+    "jupyter>=1.1.1",
+    "nbconvert>=7.17.0",
+    "pyarrow>=23.0.1",
+    "lightgbm>=4.6.0",
+    "bayesian-optimization>=3.2.1",
+    "torch>=2.11.0",
+    "gpytorch>=1.15.2",
+    "linear-operator>=0.6.1",
+    "tqdm>=4.67.3",
+    "catboost>=1.2.10",
+    "umap-learn>=0.5.11",
+    "pytorch-forecasting>=1.7.0",
+    "lightning>=2.6.1",
+    "neuralforecast>=3.1.6",
+    "tsfresh>=0.20.0",
+    "prophet>=1.3.0",
+    "dynestyx",
+    "hdbscan>=0.8.42",
+]
+
+[project.optional-dependencies]
+eda = [
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "jupyter",
+]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-cov",
+    "mypy",
+    "black",
+    "ruff",
+    "isort",
+]
+
+[tool.pytest.ini_options]
+addopts = "--durations=10"
+testpaths = ["./tests"]
+
+[tool.mypy]
+ignore_missing_imports = true
+warn_unused_ignores = true
+exclude = ["build"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.flake8]
+max-line-length = 120
+
+[tool.ruff.lint]
+extend-ignore = ["E203"]
+select = [
+  "F",
+  "I",
+  "PERF",
+  "UP"
+]
+
+[tool.setuptools.packages.find]
+include = ["nhsead*"]
+exclude = ["tests*"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+    "mypy>=1.20.0",
+    "nbqa>=1.9.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
+    "nbval",
+    "pytest-xdist>=3.0.0",
+    "ruff>=0.15.9",
+    "types-requests>=2.33.0.20260402",
+]
