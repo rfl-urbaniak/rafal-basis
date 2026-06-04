@@ -65,6 +65,10 @@ from config import (
     GP_CALENDAR_PARAMS,
     GP_INFORMED_LAGS_PARAMS,
     OUTCOME_LAG,
+    PERSISTENCE_BLEND_WEIGHT,
+    PERSISTENCE_LAG_LONG,
+    PERSISTENCE_LAG_SHORT,
+    PERSISTENCE_SHORT_HORIZON,
     TRAIN_END,
     TRAIN_START,
 )
@@ -338,6 +342,36 @@ pred_ensemble = np.concatenate([
     W_CAL_610 * pred_cal[:, 5:] + W_INF_610 * pred_inf[:, 5:],
 ], axis=1)
 
+# ── Step 6c: seasonal-naive persistence blend + non-negativity clamp ─────────
+# persistence[D,h] = outcome[D + h - lag], lag=7 (h<=3) else 14. Weekday-aligned,
+# all within the D-OUTCOME_LAG availability cutoff (deepest reach y[D-4] at h=10).
+_persist = np.full_like(pred_ensemble, np.nan)
+for _i, _D in enumerate(assessment_windows):
+    for _h in range(1, FORECAST_DAYS + 1):
+        _lag = PERSISTENCE_LAG_SHORT if _h <= PERSISTENCE_SHORT_HORIZON else PERSISTENCE_LAG_LONG
+        _persist[_i, _h - 1] = outcome.get(_D + pd.Timedelta(days=_h - _lag), np.nan)
+
+_persist_bad = (~np.isfinite(_persist)) | (_persist == -9999.0)
+if _assessment_ready:
+    assert not _persist_bad.any(), \
+        f"{int(_persist_bad.sum())} persistence lookups are -9999/NaN after assessment release"
+# Graceful fallback: where persistence is unavailable, fall back to GP (=> no blend there).
+_persist = np.where(_persist_bad, pred_ensemble, _persist)
+
+_w = PERSISTENCE_BLEND_WEIGHT
+pred_blended = (1.0 - _w) * pred_ensemble + _w * _persist
+logger.info(
+    f"Persistence blend: w={_w}, seasonal_7_14 "
+    f"(lag {PERSISTENCE_LAG_SHORT}d for h<={PERSISTENCE_SHORT_HORIZON}, else {PERSISTENCE_LAG_LONG}d); "
+    f"{int(_persist_bad.sum())} cells fell back to GP"
+)
+
+# Non-negativity clamp — target is >= 0; clamp is no-regret under MSE.
+_n_clamped = int((pred_blended < 0).sum())
+if _n_clamped:
+    logger.info(f"Non-negativity clamp: floored {_n_clamped} of {pred_blended.size} predictions to 0")
+pred_ensemble = np.maximum(pred_blended, 0.0)
+
 logger.info("-" * 90)
 logger.info(f"pred_ensemble shape: {pred_ensemble.shape}  min={pred_ensemble.min():.2f}  max={pred_ensemble.max():.2f}")
 
@@ -364,6 +398,19 @@ if RUN_EVAL:
     _mse_inf_1to5,  _mse_inf_6to10  = _comp_mse(_y_ev, _pred_inf_ev)
     _mse_1to5,      _mse_6to10      = _comp_mse(_y_ev, _pred_ev)
 
+    # Shipped model = persistence-blended + clamped (mirror Step 6c on eval windows).
+    # Persistence here is a deterministic outcome lookup; the GP part is still in-sample.
+    _persist_ev = np.full_like(_pred_ev, np.nan)
+    for _i, _D in enumerate(_eval_windows):
+        for _h in range(1, FORECAST_DAYS + 1):
+            _lag = PERSISTENCE_LAG_SHORT if _h <= PERSISTENCE_SHORT_HORIZON else PERSISTENCE_LAG_LONG
+            _persist_ev[_i, _h - 1] = outcome.get(_D + pd.Timedelta(days=_h - _lag), np.nan)
+    _persist_ev = np.where(np.isfinite(_persist_ev), _persist_ev, _pred_ev)
+    _pred_blend_ev = np.maximum(
+        (1.0 - PERSISTENCE_BLEND_WEIGHT) * _pred_ev + PERSISTENCE_BLEND_WEIGHT * _persist_ev, 0.0
+    )
+    _mse_blend_1to5, _mse_blend_6to10 = _comp_mse(_y_ev, _pred_blend_ev)
+
     # baselines
     _last_vals = np.array([
         outcome.get(d - pd.Timedelta(days=OUTCOME_LAG), np.nan) for d in _eval_windows
@@ -382,7 +429,8 @@ if RUN_EVAL:
     logger.info(f"  {'Model':<22} {'1-5d':>10} {'6-10d':>10}")
     logger.info(f"  {'gp_calendar':<22} {_mse_cal_1to5:>10.6f} {_mse_cal_6to10:>10.6f}")
     logger.info(f"  {'gp_informed_lags':<22} {_mse_inf_1to5:>10.6f} {_mse_inf_6to10:>10.6f}")
-    logger.info(f"  {'Ensemble':<22} {_mse_1to5:>10.6f} {_mse_6to10:>10.6f}")
+    logger.info(f"  {'Ensemble (GP only)':<22} {_mse_1to5:>10.6f} {_mse_6to10:>10.6f}")
+    logger.info(f"  {f'SHIPPED (blend w={PERSISTENCE_BLEND_WEIGHT})':<22} {_mse_blend_1to5:>10.6f} {_mse_blend_6to10:>10.6f}")
     logger.info(f"  {'Predict-last':<22} {_mse_last_1to5:>10.6f} {_mse_last_6to10:>10.6f}")
     logger.info(f"  {'Predict-mean':<22} {_mse_mean_1to5:>10.6f} {_mse_mean_6to10:>10.6f}")
 
@@ -391,7 +439,8 @@ if RUN_EVAL:
         "|:---|---:|---:|\n"
         f"| `gp_calendar` | {_mse_cal_1to5:.6f} | {_mse_cal_6to10:.6f} |\n"
         f"| `gp_informed_lags` | {_mse_inf_1to5:.6f} | {_mse_inf_6to10:.6f} |\n"
-        f"| **gp_ensemble** | **{_mse_1to5:.6f}** | **{_mse_6to10:.6f}** |\n"
+        f"| `gp_ensemble` (pre-blend) | {_mse_1to5:.6f} | {_mse_6to10:.6f} |\n"
+        f"| **SHIPPED: gp_ensemble + {PERSISTENCE_BLEND_WEIGHT} persistence** | **{_mse_blend_1to5:.6f}** | **{_mse_blend_6to10:.6f}** |\n"
         f"| Predict-last | {_mse_last_1to5:.6f} | {_mse_last_6to10:.6f} |\n"
         f"| Predict-mean | {_mse_mean_1to5:.6f} | {_mse_mean_6to10:.6f} |\n"
     )

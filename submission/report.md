@@ -28,6 +28,19 @@ held-out hard-week / average-difficulty-week split drawn from 2022–2024 develo
 GPs were favoured for their robustness under distribution shift on the hardest weeks.
 Full architectural sweep details are documented in the development repository.
 
+The final submitted forecast augments this ensemble with a seasonal-naïve **persistence**
+component and a non-negativity clamp:
+$$\text{final} = 0.75\,\hat{y}_{\text{GP}} + 0.25\,\hat{y}_{\text{persist}},
+\qquad\text{then}\quad \max(\cdot,\,0).$$
+The persistence term is weekday-aligned — it copies the outcome from one week earlier for
+horizons 1–3 and two weeks earlier for horizons 4–10 — using only values at $D-4$ or older,
+so it respects the same availability cutoff as the GP features. It corrects a mild
+under-dispersion of the GP posterior mean in elevated winters by reinjecting the recent
+level; because the GP and persistence errors are largely decorrelated, the blend also
+reduces variance. The weight $0.25$ is deliberately conservative — enough recent level to
+correct the winter under-dispersion while keeping the GP dominant, which limits the
+downside in weeks where the recent level is a poor guide (such as sharp declines).
+
 ---
 
 ## 2. Data Pipeline
@@ -70,6 +83,14 @@ Hyperparameters and the choice of `ConstantMean` over a richer mean function wer
 on a held-out split of the development period,
 documented in the development repository.
 
+**Persistence blend.** Let $\text{lag}(h)=7$ for $h\le 3$ and $14$ otherwise. The
+persistence forecast is $\hat{y}_{\text{persist}}[D,h] = y_{D+h-\text{lag}(h)}$, whose
+freshest reach is $y_{D-4}$ (attained at $h=3$ and $h=10$), within the availability cutoff.
+The shipped forecast is $0.75\,\hat{y}_{\text{GP}} + 0.25\,\hat{y}_{\text{persist}}$, clamped
+to be non-negative. The clamp is no-regret under MSE — the outcome is non-negative, so
+flooring a negative posterior mean to zero can only reduce squared error — and in practice
+it almost never activates.
+
 ---
 
 ## 4. Evaluation
@@ -78,7 +99,9 @@ The table and trajectory plot below are in-sample over the last 30 training wind
 the model was trained on these windows, so MSE values are optimistic relative to the
 out-of-sample assessment period the contest will score on. They are included as a
 sanity check that the ensemble fits the training distribution and that horizon-specific
-weighting yields a coherent improvement over either component model. Out-of-sample
+weighting yields a coherent improvement over either component model. The bolded row is
+the **shipped** model (GP ensemble plus the $0.25$ persistence blend, clamped); the
+unbolded `gp_ensemble` row is the pre-blend GP for comparison. Out-of-sample
 generalisation was validated separately during development on a held-out
 2025-04-01 – 2025-09-30 split, with results documented in the development repository.
 

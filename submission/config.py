@@ -41,3 +41,17 @@ GP_INFORMED_LAGS_PARAMS = {
     "top_k_sensors": 3,
     "outputscale_init": 2.0,
 }
+
+# Persistence blend (seasonal-naive component).
+# final = (1 - W) * gp_ensemble + W * persistence, then clamped at 0.
+# persistence[D, h] = outcome[D + h - lag], lag = SHORT for h <= SHORT_HORIZON else LONG.
+# Weekday-aligned (7/14 = 1/2 weeks); deepest reach outcome[D-4] at h=10 (respects OUTCOME_LAG).
+# W chosen by a walk-forward battery (2 winters, 53 weeks): the production-strength
+# optimum is ~0.25-0.30, NOT the 0.5 of the original handicapped single-winter proxy.
+# At 0.25 the improvement is significant (DM -3.06; bootstrap CI [-0.017, -0.005]),
+# robust across both observed winters, sits on the flat plateau, and roughly halves
+# worst-week tail risk vs 0.5. See ~/Downloads/rafal-basis-tests/.
+PERSISTENCE_BLEND_WEIGHT  = 0.25
+PERSISTENCE_LAG_SHORT     = 7
+PERSISTENCE_LAG_LONG      = 14
+PERSISTENCE_SHORT_HORIZON = 3

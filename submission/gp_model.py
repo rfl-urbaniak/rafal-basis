@@ -271,6 +271,7 @@ def train(
     clear_cache: bool = False,
     name: str = "",
     figures_dir: pathlib.Path | None = None,
+    seed: int = 0,
 ) -> tuple:
     """
     Scale inputs, fit MultitaskSparseRqIsoGP, return model state for inference.
@@ -287,8 +288,16 @@ def train(
     :param clear_cache: if True, delete existing cache before training.
     :param name: model name for logging and plot title.
     :param figures_dir: if provided, save loss plot here after training.
+    :param seed: RNG seed for inducing-point selection and mini-batch shuffling,
+        making training deterministic for the pre-/post-release consistency check.
     :returns: (model, likelihood, x_scaler, y_mean, y_std)
     """
+    # Seed before any stochastic step (np.random.choice for inducing points,
+    # shuffle=True DataLoader). Re-seeded per call so each model is reproducible
+    # independent of call order.
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
     if cache_path is not None:
         if clear_cache and cache_path.exists():
             cache_path.unlink()
