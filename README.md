@@ -20,6 +20,8 @@ The target outcome is daily estimated avoidable deaths, pre-calculated from ED a
 
 The 220 candidate explanatory variables vary in time frequency of recording, from every day to every 15 minutes. Some have records for every time-point within the 16 March 2023 to 30 September 2025 period whilst others have only partial recordings and missing data-points. 
 
+For any winning model to be integrated into NHS systems and deployed operationally, it must be developed using only the data provided. Therefore integrating external datasets is not allowed as part of this contest. 
+
 A glossary and data summary are provided in the Appendix.
 
 
