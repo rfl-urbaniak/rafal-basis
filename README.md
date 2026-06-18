@@ -27,7 +27,7 @@ A glossary and data summary are provided in the Appendix.
 
 ### Assessment dataset
 
-The assessment dataset will have the same format as the development dataset, containing the target variable and 220 candidate explanatory variables over the period from 1 October 2025 to 31 March 2026; in the current development dataset, this period is represented by dummy values (-9999).
+The assessment dataset will have the same format as the development dataset, containing the target variable and 220 candidate explanatory variables over the period from 1 October 2025 to 17 February 2026; in the current development dataset, this period is represented by dummy values (-9999).
 
 Note: You must have Git Large File Storage (Git LFS) installed in order to access the dataset.
 
@@ -51,13 +51,13 @@ To download the data without a github account, click the code box dropdown and d
 -   All entries must follow the submission formats outlined below.
 -   All entries must include a max 1000 word report to accompany the forecast analyses. This can be as a separate PDF/hmtl or incorporated into a quarto/jupyter notebook.
 -   Participants must submit their final algorithms by 5 June 2026. 
--   The assessment dataset will be released on the 6 June 2026, upon which competitors must apply their submitted algorithms in generating forecasts over the assessment period from October 2025 to March 2026.
--   The final deadline for participants to submit their forecasts is 20 June 2026. Final submissions will be compared with those made prior to the release of the assessment dataset to verify that the algorithms have remained consistent.
+-   The assessment dataset will be released on the 6 June 2026, upon which competitors must apply their submitted algorithms in generating forecasts over the assessment period from October 2025 to February 2026.
+-   The final deadline for participants to submit their forecasts is 4 July 2026. Final submissions will be compared with those made prior to the release of the assessment dataset to verify that the algorithms have remained consistent.
 
 
 ### How to Win!
 
-There are 182 days within the 1 October 2025 to 31 March 2026 range of the assessment dataset, meaning there are 173 sliding 10-day forecast periods (e.g., 1–10 Oct 2025 to 21–31 Mar 2026). 
+There are 182 days within the 1 October 2025 to 17 February 2026 range of the assessment dataset, meaning there are 173 sliding 10-day forecast periods (e.g., 1–10 Oct 2025 to 7–17 Feb 2026). 
 
 Competitors must use their submitted algorithm to generate forecasts for each day in all 173 periods. Forecast accuracy will be evaluated using Mean Squared Error (MSE) over the 1–5-day and 6–10-day horizons, as defined below:
 
