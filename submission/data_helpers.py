@@ -20,14 +20,26 @@ from config import (
 from loguru import logger
 
 DATA_PATH = pathlib.Path(__file__).parent.parent / "data" / "turingAI_forecasting_challenge_dataset.csv"
+VALIDATION_DATA_PATH = pathlib.Path(__file__).parent.parent / "data" / "turingAI_forecasting_challenge_validation_dataset.csv"
 CACHE_PATH = pathlib.Path(__file__).parent / ".cache" / "dataset.parquet"
 OUTCOME_CACHE_PATH = pathlib.Path(__file__).parent / ".cache" / "outcome.parquet"
 SENSORS_CACHE_PATH = pathlib.Path(__file__).parent / ".cache" / "sensors.parquet"
 
 
+def _parse_csv(path: pathlib.Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    df["dt"] = pd.to_datetime(df["dt"], format="mixed", utc=True).dt.tz_localize(None)
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    return df
+
+
 def load_raw(data_path: pathlib.Path = DATA_PATH, clear_cache: bool = False) -> pd.DataFrame:
     """
     Read the long-format CSV dataset, caching to Parquet on first load.
+
+    If VALIDATION_DATA_PATH exists alongside DATA_PATH, the two CSVs are merged:
+    -9999 placeholder rows from the development set are dropped so that the
+    validation dataset's actual values take precedence for the assessment period.
 
     Columns: dt (datetime), metric_name, value, coverage, coverage_label, variable_type.
     One row per observation; mixed frequencies (15-min to daily).
@@ -43,9 +55,18 @@ def load_raw(data_path: pathlib.Path = DATA_PATH, clear_cache: bool = False) -> 
         logger.info(f"load_raw: cache hit ({CACHE_PATH})")
         return pd.read_parquet(CACHE_PATH)
     logger.info(f"load_raw: cache miss — parsing CSV {data_path}")
-    df = pd.read_csv(data_path)
-    df["dt"] = pd.to_datetime(df["dt"], format="mixed")
-    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df_dev = _parse_csv(data_path)
+    # Drop -9999 placeholders so validation data takes precedence for the assessment period.
+    df_dev = df_dev[df_dev["value"] != -9999.0]
+    if VALIDATION_DATA_PATH.exists():
+        logger.info(f"load_raw: merging validation dataset {VALIDATION_DATA_PATH}")
+        df_val = _parse_csv(VALIDATION_DATA_PATH)
+        df_val = df_val[df_val["value"] != -9999.0]
+        df = pd.concat([df_dev, df_val], ignore_index=True)
+        logger.info(f"load_raw: merged dev ({len(df_dev):,} rows) + validation ({len(df_val):,} rows) = {len(df):,} rows")
+    else:
+        df = df_dev
+        logger.info(f"load_raw: validation dataset not found, using dev only ({len(df):,} rows)")
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(CACHE_PATH, index=False)
     return df
